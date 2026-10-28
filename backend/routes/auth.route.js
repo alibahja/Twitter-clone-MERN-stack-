@@ -1,5 +1,6 @@
 import express, { Router } from "express"
 import {logout, signup,login, getMe} from "../controllers/auth.controller.js"
+import { protectRoute } from "../middleware/protectRoute.js";
 const router=Router();
 
 router.get("/me",protectRoute,getMe);

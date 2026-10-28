@@ -1,12 +1,24 @@
 import Notification from "../models/notification.model.js";
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
-import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
+import path from "path";
+import {fileURLToPath, pathToFileURL} from "url";
+
+
+const __filename=fileURLToPath(import.meta.url);
+const __dirname=path.dirname(__filename);
+
+//checks if the upload folder exists. If not, create it
+const uploadDir=path.join(__dirname,"../uploads");
+if(!fs.existsSync(uploadDir)){
+    fs.mkdirSync(uploadDir,{recursive:true});
+}
 
 export const createPost=async (req,res)=>{
     try {
         const {text}=req.body;
-        let img= req.body;
+        let img= req.body.img;
         const userId=req.user._id.toString();
 
         const user=await User.findById(userId);
@@ -16,15 +28,25 @@ export const createPost=async (req,res)=>{
 		if (!text && !img) {
 			return res.status(400).json({ error: "Post must have text or image" });
 		}
+        let imageUrl="";
+        if(img && img.startsWith("data:image")){
+            
+            const base64Data=img.split(",")[1];
+            const extension= img.split(";")[0].split("/")[1];
+            const fileName=`post_${Date.now()}.${extension}`;
+            const filePath = path.join(__dirname, "../uploads", fileName);
 
-        if(img){
-            const uploadedResponse=await cloudinary.uploader.upload(img);
-            img=uploadedResponse.secure_url;
+            fs.writeFileSync(filePath,base64Data,'base64');
+
+            imageUrl=`/uploads/${fileName}`;
         }
-        const newPost=new Post({
-            user:userId,
+        else if(img){
+            imageUrl=img;
+        }
+         const newPost = new Post({
+            user: userId,
             text,
-            img,
+            img: imageUrl, // 存本地路径
         });
         await newPost.save();
         res.status(201).json(newPost);
@@ -46,10 +68,14 @@ export const deletePost=async (req,res)=>{
             return res.status(401).json({error:"You are unauthorized to delete this post"});
         }
         if(post.img){
-            const imgId=post.img.split("/").pop().split(".")[0];
-            await cloudinary.uploader.destroy(imgId);
+             const fileName = post.img.split("/").pop(); 
+            const filePath = path.join(__dirname, "../uploads", fileName);
+            
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
         }
-        await Post.findByIdAndUpdate(req.params.id);
+        await Post.findByIdAndDelete(req.params.id);
         res.status(200).json({ message: "Post deleted successfully" });
     } catch (error) {
         console.log("Error in deletePost controller: ", error);
@@ -85,7 +111,7 @@ export const commentOnPost=async (req,res)=>{
 
 export const likeUnlikePost=async (req,res)=>{
     try {
-        const {id:postId} =req.params.id;
+        const postId =req.params.id;
         const userId=req.user._id;
         
         const post=await Post.findById(postId);
@@ -202,7 +228,7 @@ export const getUserPosts=async (req,res)=>{
     try {
         const {username}=req.params;
 
-        const user =User.findOne({username});
+        const user = await User.findOne({username});
         if (!user) return res.status(404).json({ error: "User not found" });
 
         const posts=await Post.find({user:user._id})

@@ -13,8 +13,8 @@ import { formatPostDate } from "../../utils/date";
 
 const Post = ({ post }) => {
 	const [comment, setComment] = useState("");
-	const { data: authUser } = useQuery({ queryKey: ["authUser"] });
 	const queryClient = useQueryClient();
+	const authUser = queryClient.getQueryData(["authUser"]);
 	const postOwner = post.user;
 	const isLiked = post.likes.includes(authUser._id);
 
@@ -60,11 +60,10 @@ const Post = ({ post }) => {
 			}
 		},
 		onSuccess: (updatedLikes) => {
-			// this is not the best UX, bc it will refetch all posts
-			// queryClient.invalidateQueries({ queryKey: ["posts"] });
-
-			// instead, update the cache directly for that post
-			queryClient.setQueryData(["posts"], (oldData) => {
+			// Invalidate the specific query to ensure it refetches correctly
+			// But to update instantly without a reload, we update all "posts" caches:
+			queryClient.setQueriesData({ queryKey: ["posts"] }, (oldData) => {
+				if (!oldData) return oldData; // Safety check
 				return oldData.map((p) => {
 					if (p._id === post._id) {
 						return { ...p, likes: updatedLikes };

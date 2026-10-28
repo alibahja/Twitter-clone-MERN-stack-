@@ -1,5 +1,12 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
+import fs from "fs";
+import path from "path";
+import {fileURLToPath} from "url";
+import Notification from "../models/notification.model.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const getUserProfile=async (req,res)=>{
     const {username}=req.params;
@@ -77,50 +84,78 @@ export const getSuggestedUsers=async (req,res)=>{
     }
 };
 
-export const updateUser=async (req,res)=>{
-   const {fullName,email,username,currentPassword,newPassword,bio,link}=req.body;
-   let {profileImg,coverImg}=req.body;
+export const updateUser = async (req, res) => {
+	const { fullName, email, username, currentPassword, newPassword, bio, link } = req.body;
+	let { profileImg, coverImg } = req.body;
 
-   const userId=req.user._id;
-   
-   try {
-    let user=await User.findById(userId);
-    if(!user) return res.status(404).json({message:"User not found"});
+	const userId = req.user._id;
 
-    if((!newPassword && currentPassword) || (!currentPassword && newPassword)){
-        return res.status(400).json({error:"Please Provide both the current password and the new Password"});
-    }
+	try {
+		let user = await User.findById(userId);
+		if (!user) return res.status(404).json({ message: "User not found" });
 
-    if(currentPassword && newPassword){
-        const isMatch=await bcrypt.compare(currentPassword,user.password);
-        if (!isMatch) return res.status(400).json({ error: "Current password is incorrect" });
-		if (newPassword.length < 6) {
-				return res.status(400).json({ error: "Password must be at least 6 characters long" });
+		if ((!newPassword && currentPassword) || (!currentPassword && newPassword)) {
+			return res.status(400).json({ error: "Please provide both the current password and the new Password" });
 		}
-        const salt= await bcrypt.genSalt(10);
-        user.password=await bcrypt.hash(newPassword,salt);
-    }
 
-    if(profileImg){
-        if (user.profileImg) {
-				// https://res.cloudinary.com/dyfqon1v6/image/upload/v1712997552/zmxorcxexpdbh8r0bkjb.png
-				await cloudinary.uploader.destroy(user.profileImg.split("/").pop().split(".")[0]);
+		if (currentPassword && newPassword) {
+			const isMatch = await bcrypt.compare(currentPassword, user.password);
+			if (!isMatch) return res.status(400).json({ error: "Current password is incorrect" });
+			if (newPassword.length < 6) {
+				return res.status(400).json({ error: "Password must be at least 6 characters long" });
+			}
+			const salt = await bcrypt.genSalt(10);
+			user.password = await bcrypt.hash(newPassword, salt);
+		}
+
+		// --- PROFILE IMAGE LOGIC ---
+		if (profileImg) {
+			// 1. Delete old profile image from local storage
+			if (user.profileImg) {
+				const oldFileName = user.profileImg.split("/").pop();
+				const oldFilePath = path.join(__dirname, "../uploads", oldFileName);
+				if (fs.existsSync(oldFilePath)) {
+					fs.unlinkSync(oldFilePath);
+				}
 			}
 
-			const uploadedResponse = await cloudinary.uploader.upload(profileImg);
-			profileImg = uploadedResponse.secure_url;
-    }
+			// 2. Save new profile image to local storage
+			if (profileImg.startsWith("data:image")) {
+				const base64Data = profileImg.split(",")[1];
+				const extension = profileImg.split(";")[0].split("/")[1];
+				const fileName = `profile_${Date.now()}.${extension}`;
+				const filePath = path.join(__dirname, "../uploads", fileName);
 
-    if(coverImg){
-        if (user.coverImg) {
-				await cloudinary.uploader.destroy(user.coverImg.split("/").pop().split(".")[0]);
+				fs.writeFileSync(filePath, base64Data, 'base64');
+				profileImg = `/uploads/${fileName}`;
+			}
+		}
+
+		// --- COVER IMAGE LOGIC ---
+		if (coverImg) {
+			// 1. Delete old cover image from local storage
+			if (user.coverImg) {
+				const oldFileName = user.coverImg.split("/").pop();
+				const oldFilePath = path.join(__dirname, "../uploads", oldFileName);
+				if (fs.existsSync(oldFilePath)) {
+					fs.unlinkSync(oldFilePath);
+				}
 			}
 
-			const uploadedResponse = await cloudinary.uploader.upload(coverImg);
-			coverImg = uploadedResponse.secure_url;
-    }
+			// 2. Save new cover image to local storage
+			if (coverImg.startsWith("data:image")) {
+				const base64Data = coverImg.split(",")[1];
+				const extension = coverImg.split(";")[0].split("/")[1];
+				const fileName = `cover_${Date.now()}.${extension}`;
+				const filePath = path.join(__dirname, "../uploads", fileName);
 
-        user.fullName = fullName || user.fullName;
+				fs.writeFileSync(filePath, base64Data, 'base64');
+				coverImg = `/uploads/${fileName}`;
+			}
+		}
+
+		// Update the user fields
+		user.fullName = fullName || user.fullName;
 		user.email = email || user.email;
 		user.username = username || user.username;
 		user.bio = bio || user.bio;
@@ -131,11 +166,11 @@ export const updateUser=async (req,res)=>{
 		user = await user.save();
 
 		// password should be null in response
-		user.password = null;
+		user.password = undefined;
 
 		return res.status(200).json(user);
-   } catch (error) {
-      console.log("Error in updateUser: ", error.message);
+	} catch (error) {
+		console.log("Error in updateUser: ", error.message);
 		res.status(500).json({ error: error.message });
-   }
-}
+	}
+};
