@@ -46,9 +46,9 @@ if (process.env.NODE_ENV === "production") {
 	// Note: We go up one level from "backend" to find the "frontend" folder
 	app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-	app.get("*", (req, res) => {
-		res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"));
-	});
+	app.get("/{*splat}", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"));
+});
 }
 
 
