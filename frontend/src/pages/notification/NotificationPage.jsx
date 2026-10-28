@@ -72,7 +72,7 @@ const NotificationPage = () => {
 					</div>
 				)}
 				{notifications?.length === 0 && <div className='text-center p-4 font-bold'>No notifications 🤔</div>}
-				// Find the .map function in your Notifications component
+				
 				{notifications?.map((n) => {
 					// 1. Add a safety check to skip broken notifications
 					if (!n.from || !n.to) return null; 
