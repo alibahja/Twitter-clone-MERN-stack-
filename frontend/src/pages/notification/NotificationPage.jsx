@@ -72,25 +72,34 @@ const NotificationPage = () => {
 					</div>
 				)}
 				{notifications?.length === 0 && <div className='text-center p-4 font-bold'>No notifications 🤔</div>}
-				{notifications?.map((notification) => (
-					<div className='border-b border-gray-700' key={notification._id}>
-						<div className='flex gap-2 p-4'>
-							{notification.type === "follow" && <FaUser className='w-7 h-7 text-primary' />}
-							{notification.type === "like" && <FaHeart className='w-7 h-7 text-red-500' />}
-							<Link to={`/profile/${notification.from.username}`}>
-								<div className='avatar'>
-									<div className='w-8 rounded-full'>
-										<img src={notification.from.profileImg || "/avatar-placeholder.png"} />
-									</div>
+				// Find the .map function in your Notifications component
+				{notifications?.map((n) => {
+					// 1. Add a safety check to skip broken notifications
+					if (!n.from || !n.to) return null; 
+
+					// 2. Add optional chaining (?) to all properties just to be safe
+					return (
+						<div key={n._id} className='flex gap-2 items-start p-4 border-b border-gray-700'>
+							<div className='avatar'>
+								<div className='w-8 rounded-full'>
+									<img 
+										src={n.from?.profileImg || "/avatar-placeholder.png"} 
+										alt='avatar' 
+									/>
 								</div>
-								<div className='flex gap-1'>
-									<span className='font-bold'>@{notification.from.username}</span>{" "}
-									{notification.type === "follow" ? "followed you" : "liked your post"}
+							</div>
+							<div className='flex flex-col'>
+								<div className='flex items-center gap-1'>
+									<span className='font-bold'>{n.from?.fullName}</span>
+									<span className='text-gray-700'>@{n.from?.username}</span>
 								</div>
-							</Link>
+								<p className='text-sm text-slate-500'>
+									{n.type === "follow" ? "followed you" : "liked your post"}
+								</p>
+							</div>
 						</div>
-					</div>
-				))}
+					);
+				})}
 			</div>
 		</>
 	);
