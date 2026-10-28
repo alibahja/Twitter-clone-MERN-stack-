@@ -45,7 +45,7 @@ A full-stack Twitter clone built with MongoDB, Express, React, and Node.js. It s
 3. Create a `.env` file in the project root:
 
    ```env
-   PORT=8000
+   PORT=5000
    MONGO_URI=your_mongodb_connection_string
    JWT_SECRET=your_jwt_secret
    ```
